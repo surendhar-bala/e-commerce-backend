@@ -92,6 +92,31 @@ export async function getUserById(id: string): Promise<PublicUser | null> {
   return result.rows[0] ? toPublicUser(result.rows[0]) : null
 }
 
+export async function emailExists(email: string): Promise<boolean> {
+  const result = await query<{ id: string }>(
+    'SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1',
+    [email.trim().toLowerCase()],
+  )
+  return Boolean(result.rows[0])
+}
+
+export async function resetPasswordByEmail(email: string, password: string): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase()
+  const result = await query<{ id: string }>(
+    'SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1',
+    [normalizedEmail],
+  )
+  if (!result.rows[0]) {
+    throw new AppError('No account found with this email address.', 404, 'EMAIL_NOT_FOUND')
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10)
+  await query(
+    'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE LOWER(email) = $2',
+    [passwordHash, normalizedEmail],
+  )
+}
+
 export async function seedDemoSeller() {
   const email = 'seller@velora.studio'
   const existing = await query('SELECT id FROM users WHERE LOWER(email) = $1', [email])

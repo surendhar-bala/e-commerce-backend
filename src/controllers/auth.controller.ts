@@ -17,6 +17,15 @@ const loginSchema = z.object({
   password: z.string().min(8),
 })
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+})
+
+const resetPasswordSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+})
+
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const payload = registerSchema.parse(req.body)
   const session = await authService.registerUser(payload)
@@ -44,10 +53,17 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
   res.json({ user, accessToken: req.headers.authorization?.slice('Bearer '.length) ?? '' })
 })
 
-export const forgotPassword = asyncHandler(async (_req: Request, res: Response) => {
-  res.status(204).send()
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = forgotPasswordSchema.parse(req.body)
+  const exists = await authService.emailExists(email)
+  if (!exists) {
+    throw new AppError('No account found with this email address.', 404, 'EMAIL_NOT_FOUND')
+  }
+  res.json({ verified: true })
 })
 
-export const resetPassword = asyncHandler(async (_req: Request, res: Response) => {
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  const payload = resetPasswordSchema.parse(req.body)
+  await authService.resetPasswordByEmail(payload.email, payload.password)
   res.status(204).send()
 })
