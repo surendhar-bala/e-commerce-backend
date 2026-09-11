@@ -2,11 +2,17 @@ import dotenv from 'dotenv'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const runtimeEnv = new Map<string, string>()
 
 /** Load .env for local `npm run dev` only — not called on Cloudflare Workers. */
 export function loadLocalEnv() {
+  const moduleUrl = import.meta.url
+  if (!moduleUrl) {
+    dotenv.config()
+    return
+  }
+
+  const rootDir = path.resolve(path.dirname(fileURLToPath(moduleUrl)), '../..')
   dotenv.config({ path: path.join(rootDir, '.env') })
 }
 
