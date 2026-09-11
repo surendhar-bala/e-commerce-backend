@@ -20,12 +20,21 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
     return
   }
 
-  if (env.nodeEnv === 'development' && error instanceof Error) {
-    console.error(error.stack ?? error.message)
-  } else {
-    console.error(error)
-  }
-  res.status(500).json({ message: 'Internal server error', code: 'INTERNAL_ERROR' })
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(error instanceof Error ? (error.stack ?? error.message) : error)
+
+  const isDatabaseError =
+    message.includes('relation') ||
+    message.includes('password') ||
+    message.includes('ECONNREFUSED') ||
+    message.includes('connect') ||
+    message.includes('SSL') ||
+    message.includes('Hyperdrive')
+
+  res.status(500).json({
+    message: isDatabaseError ? message : 'Internal server error',
+    code: isDatabaseError ? 'DATABASE_ERROR' : 'INTERNAL_ERROR',
+  })
 }
 
 export function asyncHandler<T extends Request>(

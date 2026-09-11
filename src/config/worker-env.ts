@@ -1,3 +1,4 @@
+import { enableHyperdriveClientMode } from './database.js'
 import { setRuntimeEnv } from './env.js'
 
 /**
@@ -8,6 +9,7 @@ export function applyWorkerBindings(cfEnv: Record<string, unknown>) {
   const hyperdrive = cfEnv.HYPERDRIVE as { connectionString?: string } | undefined
   if (hyperdrive?.connectionString) {
     setRuntimeEnv('DATABASE_URL', hyperdrive.connectionString)
+    enableHyperdriveClientMode()
   }
 
   const bindingKeys = [

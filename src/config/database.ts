@@ -1,16 +1,43 @@
 import pg from 'pg'
 import { env } from './env.js'
 
-const { Pool } = pg
+const { Pool, Client } = pg
 
 type PoolConfig = pg.PoolConfig
 
+let pool: pg.Pool | undefined
+let useHyperdriveClient = false
+
+/** Use Hyperdrive's per-request client mode on Cloudflare Workers. */
+export function enableHyperdriveClientMode() {
+  useHyperdriveClient = true
+  pool = undefined
+}
+
+function getConnectionString(): string {
+  return env.databaseUrl
+}
+
+function isRemoteDatabase(connectionString: string): boolean {
+  return (
+    env.nodeEnv === 'production' ||
+    /neon\.tech|hyperdrive|supabase|render\.com|railway\.app|sslmode=/i.test(connectionString)
+  )
+}
+
 /**
  * pg requires `password` to be a string for SCRAM auth.
- * A bare connection URL like postgresql://localhost:5432/db leaves it undefined.
+ * Hyperdrive/Neon URLs should be passed through as connectionString without extra SSL options.
  */
 function buildPoolConfig(): PoolConfig {
-  const connectionString = env.databaseUrl
+  const connectionString = getConnectionString()
+
+  if (isRemoteDatabase(connectionString)) {
+    return {
+      connectionString,
+      max: 5,
+    }
+  }
 
   try {
     const url = new URL(connectionString.replace(/^postgresql:\/\//i, 'postgres://'))
@@ -20,19 +47,13 @@ function buildPoolConfig(): PoolConfig {
       host: url.hostname || 'localhost',
       port: url.port ? Number(url.port) : 5432,
       user: decodeURIComponent(url.username || 'postgres'),
-      password: decodeURIComponent(url.password),
+      password: decodeURIComponent(url.password || ''),
       database: database || 'postgres',
-      ssl: env.nodeEnv === 'production' ? { rejectUnauthorized: false } : undefined,
     }
   } catch {
-    return {
-      connectionString,
-      ssl: env.nodeEnv === 'production' ? { rejectUnauthorized: false } : undefined,
-    }
+    return { connectionString }
   }
 }
-
-let pool: pg.Pool | undefined
 
 export function getPool(): pg.Pool {
   if (!pool) {
@@ -41,10 +62,28 @@ export function getPool(): pg.Pool {
   return pool
 }
 
+async function queryWithHyperdriveClient<T extends pg.QueryResultRow>(
+  text: string,
+  params?: unknown[],
+) {
+  const client = new Client({ connectionString: getConnectionString() })
+
+  try {
+    await client.connect()
+    return await client.query<T>(text, params)
+  } finally {
+    await client.end()
+  }
+}
+
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
   params?: unknown[],
 ) {
+  if (useHyperdriveClient) {
+    return queryWithHyperdriveClient<T>(text, params)
+  }
+
   return getPool().query<T>(text, params)
 }
 
@@ -55,15 +94,16 @@ export function formatDatabaseStartupHint(error: unknown): string | null {
     message.includes('password must be a string') ||
     message.includes('ECONNREFUSED') ||
     message.includes('does not exist') ||
-    message.includes('password authentication failed')
+    message.includes('password authentication failed') ||
+    message.includes('relation') ||
+    message.includes('SSL')
   ) {
     return [
       '',
       'Database connection failed.',
-      '1. Copy .env.example to .env in e-commerce-backend/',
-      '2. Set DATABASE_URL with your PostgreSQL username and password, for example:',
-      '   DATABASE_URL=postgresql://postgres:your_password@localhost:5432/ecommerce',
-      '3. Create the database and run: psql -U postgres -d ecommerce -f sql/schema.sql',
+      message,
+      '1. Verify Hyperdrive is linked to your Neon database in Cloudflare.',
+      '2. Run sql/schema.sql against Neon: npm run db:schema',
       '',
     ].join('\n')
   }
