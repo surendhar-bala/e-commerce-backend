@@ -25,9 +25,8 @@
 	"vars": {
 		"CORS_ORIGIN": "https://e-com-frontend.balakiro89.workers.dev",
 		"R2_PUBLIC_URL": "https://pub-ff8c1f95fcbf4579a92f67289efdcadb.r2.dev",
-		"RAZORPAY_KEY_ID": "rzp_test_TYQEcRG9RkxaNE"
+		"RAZORPAY_KEY_ID": "rzp_test_TYQEcRG9RkxaNE",
+		"RAZORPAY_KEY_SECRET": "ge5k39GvI8Rgz1rr9zGBzL83",
+		"JWT_SECRET": "change-me-in-production"
 	}
-	// Set secrets before deploy:
-	// npx wrangler secret put JWT_SECRET
-	// npx wrangler secret put RAZORPAY_KEY_SECRET
 }
