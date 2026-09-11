@@ -32,13 +32,20 @@ function buildPoolConfig(): PoolConfig {
   }
 }
 
-export const pool = new Pool(buildPoolConfig())
+let pool: pg.Pool | undefined
+
+export function getPool(): pg.Pool {
+  if (!pool) {
+    pool = new Pool(buildPoolConfig())
+  }
+  return pool
+}
 
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
   params?: unknown[],
 ) {
-  return pool.query<T>(text, params)
+  return getPool().query<T>(text, params)
 }
 
 export function formatDatabaseStartupHint(error: unknown): string | null {

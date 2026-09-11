@@ -1,10 +1,12 @@
 import { createApp } from './app.js'
-import { formatDatabaseStartupHint, pool } from './config/database.js'
-import { env, isRazorpayConfigured, isR2Configured, getR2MissingVars } from './config/env.js'
+import { formatDatabaseStartupHint, getPool } from './config/database.js'
+import { env, isRazorpayConfigured, isR2Configured, getR2MissingVars, loadLocalEnv } from './config/env.js'
+
+loadLocalEnv()
 import { seedDemoSeller } from './services/auth.service.js'
 import { ensureOrderSchema } from './services/order.schema.js'
 async function start() {
-  await pool.query('SELECT 1')
+  await getPool().query('SELECT 1')
   await ensureOrderSchema()
   await seedDemoSeller()
 

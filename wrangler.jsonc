@@ -1,0 +1,26 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "e-com-backend",
+	"main": "src/worker.ts",
+	"compatibility_date": "2026-09-11",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"enable_nodejs_http_server_modules"
+	],
+	// Create Hyperdrive first: npx wrangler hyperdrive create ecommerce-db --connection-string="YOUR_NEON_URL"
+	// Then replace the id below with the Hyperdrive config id from the dashboard or CLI output.
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "c52842c1a0f84325832c1344cc57b39d",
+			"localConnectionString": "postgresql://postgres:postgres@localhost:5432/ecommerce"
+		}
+	],
+	"vars": {
+		"CORS_ORIGIN": "https://e-com-frontend.balakiro89.workers.dev"
+	}
+	// Set secrets before deploy:
+	// npx wrangler secret put JWT_SECRET
+	// npx wrangler secret put RAZORPAY_KEY_SECRET  (optional)
+	// npx wrangler secret put R2_SECRET_ACCESS_KEY  (optional)
+}
