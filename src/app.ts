@@ -1,5 +1,6 @@
 import cors from 'cors'
 import express from 'express'
+import { getAllowedOrigins } from './config/cors.js'
 import { env } from './config/env.js'
 import { errorHandler, notFound } from './middleware/error.middleware.js'
 import authRoutes from './routes/auth.routes.js'
@@ -13,10 +14,11 @@ export function createApp() {
 
   app.use(
     cors({
-      origin: env.corsOrigin.split(',').map((value) => value.trim()),
+      origin: getAllowedOrigins(env.corsOrigin),
       credentials: true,
     }),
   )
+  app.options('{*path}', cors({ origin: getAllowedOrigins(env.corsOrigin), credentials: true }))
   app.use(express.json({ limit: '2mb' }))
 
   app.get('/health', (_req, res) => {

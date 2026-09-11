@@ -1,3 +1,5 @@
+import { buildCorsHeaders, getAllowedOrigins, withCorsHeaders } from './config/cors.js'
+
 const PORT = 8787
 
 type ExportedHandlerFetch = {
@@ -6,6 +8,10 @@ type ExportedHandlerFetch = {
 
 let expressHandler: ExportedHandlerFetch | null = null
 let initPromise: Promise<ExportedHandlerFetch> | null = null
+
+function readCorsOrigin(cfEnv: Record<string, unknown>): string | undefined {
+  return typeof cfEnv.CORS_ORIGIN === 'string' ? cfEnv.CORS_ORIGIN : undefined
+}
 
 async function getExpressHandler(cfEnv: Record<string, unknown>): Promise<ExportedHandlerFetch> {
   if (expressHandler) {
@@ -37,20 +43,39 @@ async function getExpressHandler(cfEnv: Record<string, unknown>): Promise<Export
   }
 }
 
-function workerErrorResponse(error: unknown): Response {
+function workerErrorResponse(error: unknown, corsHeaders: Headers): Response {
   const message = error instanceof Error ? error.message : String(error)
   const stack = error instanceof Error ? error.stack : undefined
   console.error('Worker error:', message, stack)
-  return Response.json({ error: message, stack }, { status: 500 })
+
+  const headers = new Headers(corsHeaders)
+  headers.set('Content-Type', 'application/json')
+
+  return new Response(JSON.stringify({ error: message, stack }), {
+    status: 500,
+    headers,
+  })
 }
 
 export default {
   async fetch(request: Request, env: Record<string, unknown>, ctx: ExecutionContext) {
+    const allowedOrigins = getAllowedOrigins(readCorsOrigin(env))
+    const corsHeaders = buildCorsHeaders(request, allowedOrigins)
+
+    if (request.method === 'OPTIONS') {
+      if (!corsHeaders.get('Access-Control-Allow-Origin')) {
+        return new Response('CORS origin not allowed', { status: 403 })
+      }
+
+      return new Response(null, { status: 204, headers: corsHeaders })
+    }
+
     try {
       const handler = await getExpressHandler(env)
-      return await handler.fetch(request, env, ctx)
+      const response = await handler.fetch(request, env, ctx)
+      return withCorsHeaders(response, corsHeaders)
     } catch (error) {
-      return workerErrorResponse(error)
+      return workerErrorResponse(error, corsHeaders)
     }
   },
 }
