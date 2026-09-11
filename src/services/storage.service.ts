@@ -1,8 +1,9 @@
-import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { buildPublicUrl, getR2Client } from '../config/r2.js'
-import { env, isR2Configured, getR2MissingVars } from '../config/env.js'
+import { buildPublicUrl, isR2UploadReady, putObject } from '../config/r2.js'
+import { getR2MissingVars } from '../config/env.js'
+import { hasNativeR2Bucket } from '../config/r2-binding.js'
+import { env } from '../config/env.js'
 import { AppError } from '../utils/errors.js'
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
@@ -57,8 +58,12 @@ export async function uploadProductMedia(
   mediaType: 'image' | 'video',
   sellerId: string,
 ) {
-  if (!isR2Configured()) {
-    const missing = getR2MissingVars().join(', ')
+  if (!isR2UploadReady()) {
+    const missing = hasNativeR2Bucket()
+      ? !env.r2PublicUrl
+        ? 'R2_PUBLIC_URL'
+        : 'PRODUCT_MEDIA bucket binding'
+      : getR2MissingVars().join(', ')
     throw new AppError(
       `Cloudflare R2 is not configured. Add these to e-commerce-backend/.env: ${missing}`,
       503,
@@ -72,14 +77,7 @@ export async function uploadProductMedia(
   const folder = mediaType === 'image' ? 'product-image' : 'product-videos'
   const r2Key = `${folder}/${sellerId}/${randomUUID()}${ext}`
 
-  await getR2Client().send(
-    new PutObjectCommand({
-      Bucket: env.r2BucketName,
-      Key: r2Key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    }),
-  )
+  await putObject(r2Key, file.buffer, file.mimetype)
 
   return {
     url: buildPublicUrl(r2Key),

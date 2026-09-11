@@ -1,5 +1,6 @@
 import { enableHyperdriveClientMode } from './database.js'
 import { setRuntimeEnv } from './env.js'
+import { setNativeR2Bucket } from './r2-binding.js'
 
 /**
  * Maps Cloudflare Worker bindings (Hyperdrive, secrets, vars) into runtime config.
@@ -10,6 +11,11 @@ export function applyWorkerBindings(cfEnv: Record<string, unknown>) {
   if (hyperdrive?.connectionString) {
     setRuntimeEnv('DATABASE_URL', hyperdrive.connectionString)
     enableHyperdriveClientMode()
+  }
+
+  const productMedia = cfEnv.PRODUCT_MEDIA as R2Bucket | undefined
+  if (productMedia) {
+    setNativeR2Bucket(productMedia)
   }
 
   const bindingKeys = [

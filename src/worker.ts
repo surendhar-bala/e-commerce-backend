@@ -71,6 +71,9 @@ export default {
     }
 
     try {
+      const { applyWorkerBindings } = await import('./config/worker-env.js')
+      applyWorkerBindings(env)
+
       const handler = await getExpressHandler(env)
       const response = await handler.fetch(request, env, ctx)
       return withCorsHeaders(response, corsHeaders)

@@ -94,11 +94,16 @@ export function isRazorpayConfigured(): boolean {
   return Boolean(env.razorpayKeyId && env.razorpayKeySecret)
 }
 
-export function isR2Configured(): boolean {
-  return getR2MissingVars().length === 0
+export function isS3R2Configured(): boolean {
+  return getS3R2MissingVars().length === 0
 }
 
-export function getR2MissingVars(): string[] {
+/** @deprecated Use isR2UploadReady from config/r2.js for upload checks. */
+export function isR2Configured(): boolean {
+  return isS3R2Configured()
+}
+
+export function getS3R2MissingVars(): string[] {
   const missing: string[] = []
   if (!env.r2AccountId) missing.push('R2_ACCOUNT_ID')
   if (!env.r2AccessKeyId) missing.push('R2_ACCESS_KEY_ID')
@@ -106,4 +111,8 @@ export function getR2MissingVars(): string[] {
   if (!env.r2BucketName) missing.push('R2_BUCKET_NAME')
   if (!env.r2PublicUrl) missing.push('R2_PUBLIC_URL')
   return missing
+}
+
+export function getR2MissingVars(): string[] {
+  return getS3R2MissingVars()
 }
